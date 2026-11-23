@@ -1,0 +1,42 @@
+name: Capture cotes Bet365 (cloud)
+
+# Tourne tout seul dans le cloud GitHub, PC eteint OK.
+# Toutes les 30 min (heure UTC) -> capture la cote Bet365 du moment ;
+# le dernier passage avant un coup d'envoi = la cote de CLOTURE.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:        # bouton "Run workflow" pour lancer a la main
+
+permissions:
+  contents: write           # autorise le robot a reecrire les fichiers (memoire + Excel)
+
+concurrency:
+  group: capture-cotes
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Installer la dependance
+        run: pip install --quiet openpyxl
+
+      - name: Capturer les cotes
+        run: python capture_cotes_cloud.py
+
+      - name: Enregistrer les resultats dans le depot
+        run: |
+          git config user.name  "cotes-bot"
+          git config user.email "cotes-bot@users.noreply.github.com"
+          git add snapshots_cotes.csv BASE_Cotes_Prochaine_Journee.xlsx
+          git commit -m "maj cotes $(date -u '+%Y-%m-%d %H:%M UTC')" || echo "rien a committer"
+          git push
